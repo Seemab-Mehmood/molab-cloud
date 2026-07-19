@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email Verification — MOLAB Cloud</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><div class="brand-mark"></div><div><h1 class="font-display">MOLAB <span class="pill ok" style="padding:2px 6px;">CLOUD</span></h1></div></div>
+</div>
+<div class="container-sm" style="text-align:center; padding-top:64px;">
+  <div class="card pad" id="box"></div>
+</div>
+<script>
+const params = new URLSearchParams(location.search);
+const status = params.get('status');
+const box = document.getElementById('box');
+if (status === 'success') {
+  box.innerHTML = `<h2 class="font-display" style="color:var(--accent);">Email verified</h2><p class="notice-text">Your email is confirmed. You can log in now — patient intake unlocks once a network administrator approves your hospital.</p><a href="/login.html" class="btn btn-primary" style="margin-top:12px; display:inline-flex;">Go to login</a>`;
+} else if (status === 'expired') {
+  box.innerHTML = `<h2 class="font-display" style="color:var(--warn);">Link expired</h2><p class="notice-text">This verification link has expired. Request a new one from the login page.</p><a href="/login.html" class="btn btn-ghost" style="margin-top:12px; display:inline-flex;">Go to login</a>`;
+} else {
+  box.innerHTML = `<h2 class="font-display" style="color:var(--danger);">Invalid link</h2><p class="notice-text">This verification link is invalid or has already been used.</p><a href="/login.html" class="btn btn-ghost" style="margin-top:12px; display:inline-flex;">Go to login</a>`;
+}
+</script>
+</body>
+</html>
