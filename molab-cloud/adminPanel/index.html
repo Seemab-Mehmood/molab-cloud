@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>MOLAB Cloud — Network Control</title>
+<link rel="icon" type="image/png" href="/img/molab-mark.png">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="__ADMIN_PANEL_BASE__/assets/admin.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><div class="brand-mark"><img src="/img/molab-mark.png" alt="MOLAB Cloud" style="width:100%;height:100%;object-fit:contain;"></div><div><h1 class="font-display">MOLAB <span class="pill warn" style="padding:2px 6px;">CONTROL</span></h1><p class="tag">Network Administration</p></div></div>
+  <div id="topRight"></div>
+</div>
+
+<div id="loginScreen" class="container-sm">
+  <div class="card pad" style="margin-top:48px;">
+    <h2 class="font-display" style="margin-top:0;">Administrator login</h2>
+    <p class="notice-text">This panel is not linked from any public page. Access it only from this direct, private URL.</p>
+    <label class="label-sm">Email</label><input class="input" id="al_email" type="email">
+    <div style="height:10px;"></div>
+    <label class="label-sm">Password</label><input class="input" id="al_pass" type="password">
+    <div id="al_error" class="error-text hidden" style="margin-top:8px;"></div>
+    <button class="btn btn-primary" style="width:100%; margin-top:14px;" onclick="adminLogin()">Log In</button>
+  </div>
+</div>
+
+<div id="appScreen" class="hidden" style="display:flex; height:calc(100vh - 61px);">
+  <aside class="sidebar">
+    <nav style="padding:14px; display:flex; flex-direction:column; gap:4px;">
+      <button class="nav-btn" data-view="overview">📊 Overview</button>
+      <button class="nav-btn" data-view="hospitals">🏥 Hospital Directory</button>
+      <button class="nav-btn" data-view="patients">🗂️ All Patients</button>
+      <button class="nav-btn" data-view="audit">📜 Audit Log</button>
+      <button class="nav-btn" data-view="danger">⚠️ Danger Zone</button>
+    </nav>
+  </aside>
+  <main style="flex:1; overflow-y:auto; padding:24px;">
+
+    <div id="view-overview" class="adminview">
+      <div class="grid grid-4">
+        <div class="card pad"><div class="label-sm">Total hospitals</div><div id="oTotal" class="font-display" style="font-size:1.8rem; color:var(--accent);">0</div></div>
+        <div class="card pad"><div class="label-sm">Approved</div><div id="oApproved" class="font-display" style="font-size:1.8rem; color:var(--accent);">0</div></div>
+        <div class="card pad"><div class="label-sm">Pending review</div><div id="oPending" class="font-display" style="font-size:1.8rem; color:var(--warn);">0</div></div>
+        <div class="card pad"><div class="label-sm">Total patients</div><div id="oPatients" class="font-display" style="font-size:1.8rem; color:var(--accent);">0</div></div>
+      </div>
+      <div class="card pad" style="margin-top:16px;">
+        <h3 class="font-display" style="margin-top:0;">Deployment note</h3>
+        <p style="font-size:12px; color:#C7D6CC; line-height:1.6;">Hospital and patient records live in this server's SQLite database. This panel is gated by (1) a private, unlisted URL path, (2) admin email/password auth, and optionally (3) a shared secret header. For real production use, also put this behind a VPN or IP allowlist, enable 2FA, and rotate the URL path and secret key periodically.</p>
+      </div>
+    </div>
+
+    <div id="view-hospitals" class="adminview hidden">
+      <input class="input" id="hSearch" placeholder="Search by hospital, city, or country…" style="max-width:360px; margin-bottom:12px;">
+      <div class="card"><table><thead><tr><th>Hospital</th><th>Country</th><th>City / Type</th><th>Representative</th><th>Verified</th><th>Status</th><th>Patients</th><th></th></tr></thead><tbody id="hospitalsBody"></tbody></table></div>
+    </div>
+
+    <div id="view-patients" class="adminview hidden">
+      <input class="input" id="pSearch" placeholder="Search by patient code or hospital…" style="max-width:360px; margin-bottom:12px;">
+      <div class="card"><table><thead><tr><th>Code</th><th>Hospital</th><th>Type / Stage</th><th>Registered</th><th>Risk</th><th>Sims run</th></tr></thead><tbody id="patientsBody"></tbody></table></div>
+    </div>
+
+    <div id="view-audit" class="adminview hidden">
+      <div class="card"><table><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Detail</th></tr></thead><tbody id="auditBody" class="font-mono"></tbody></table></div>
+    </div>
+
+    <div id="view-danger" class="adminview hidden">
+      <div class="card pad" style="max-width:520px; border-left:4px solid var(--danger);">
+        <h3 class="font-display" style="margin-top:0;">Danger zone</h3>
+        <p style="font-size:12px; color:#C7D6CC;">There is no bulk-delete API exposed by design. Individual hospital suspension is available from the Hospital Directory tab. For irreversible data operations, act directly on the server's SQLite database file with a backup taken first.</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>window.__ADMIN_API_BASE__ = "__ADMIN_API_BASE__";</script>
+<script src="__ADMIN_PANEL_BASE__/assets/admin.js"></script>
+</body>
+</html>

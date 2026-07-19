@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register Your Hospital — MOLAB Cloud</title>
+<link rel="icon" type="image/png" href="/img/molab-mark.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><div class="brand-mark"><img src="/img/molab-mark.png" alt="MOLAB Cloud" style="width:100%;height:100%;object-fit:contain;"></div><div><h1 class="font-display">MOLAB <span class="pill ok" style="padding:2px 6px;">CLOUD</span></h1></div></div>
+</div>
+<div class="container-md">
+  <a href="/" class="font-mono notice-text" style="text-decoration:none;">← Back</a>
+  <div class="card pad" style="margin-top:16px;">
+    <h2 class="font-display" style="margin-top:0;">Register your hospital</h2>
+    <p class="notice-text">One representative account per hospital. You'll need to verify your email, and a network administrator must approve your hospital before patient intake is enabled.</p>
+    <form id="signupForm" class="grid grid-2">
+      <div style="grid-column:1/-1;"><label class="label-sm">Hospital / institution name</label><input class="input" id="name" list="hnames" required><datalist id="hnames"></datalist></div>
+      <div><label class="label-sm">City</label><input class="input" id="city" required></div>
+      <div><label class="label-sm">Country</label><select class="input" id="country" required></select></div>
+      <div style="grid-column:1/-1;"><label class="label-sm">Type</label>
+        <select class="input" id="type">
+          <option>Specialized Cancer Center</option><option>Public — Tertiary Care / National</option><option>Public — Regional / District</option><option>Private</option><option>University / Academic Medical Center</option><option>Military / Government</option>
+        </select>
+      </div>
+      <div><label class="label-sm">Representative full name</label><input class="input" id="repName" required></div>
+      <div><label class="label-sm">Representative role</label><input class="input" id="repRole" placeholder="e.g. Oncology Ward Lead"></div>
+      <div><label class="label-sm">Representative email (used to log in)</label><input class="input" id="repEmail" type="email" required></div>
+      <div><label class="label-sm">Representative phone</label><input class="input" id="repPhone"></div>
+      <div><label class="label-sm">Password</label><input class="input" id="password" type="password" minlength="8" required></div>
+      <div><label class="label-sm">Confirm password</label><input class="input" id="password2" type="password" required></div>
+      <div style="grid-column:1/-1;" id="formError" class="error-text hidden"></div>
+      <div style="grid-column:1/-1;" id="formSuccess" class="hidden">
+        <div class="card pad" style="border-left:4px solid var(--accent);">
+          <p style="font-size:12px; color:var(--accent); margin:0 0 6px;">Registration received.</p>
+          <p style="font-size:12px; color:#C7D6CC; margin:0;">Check your inbox for a verification email, then log in once verified. Your hospital will also need admin approval before you can register patients.</p>
+        </div>
+        <div class="card pad hidden" id="devEmailHint" style="border-left:4px solid var(--warn); margin-top:10px;">
+          <p style="font-size:12px; color:var(--warn); margin:0 0 6px;">No SMTP provider is configured on this server yet.</p>
+          <p style="font-size:12px; color:#C7D6CC; margin:0;">No email was actually sent. The verification link was written to the server's <code style="color:var(--accent);">data/dev-emails.log</code> file (and printed to its console) instead — an admin/developer needs to open that log to get your link, or configure real SMTP in <code style="color:var(--accent);">.env</code>.</p>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" id="submitBtn" style="grid-column:1/-1;">Submit Registration</button>
+    </form>
+  </div>
+</div>
+<script src="/js/api.js"></script>
+<script>
+const COUNTRY_LIST = ["Pakistan","India","Bangladesh","Sri Lanka","Afghanistan","United States","Canada","United Kingdom","France","Germany","Sweden","Netherlands","Spain","Italy","Jordan","Saudi Arabia","United Arab Emirates","Turkey","Japan","South Korea","China","Australia","New Zealand","South Africa","Nigeria","Kenya","Egypt","Brazil","Mexico","Argentina","Other"];
+const KNOWN_HOSPITALS = ["Shaukat Khanum Memorial Cancer Hospital & Research Centre — Lahore, Pakistan","Aga Khan University Hospital — Karachi, Pakistan","Tata Memorial Hospital — Mumbai, India","MD Anderson Cancer Center — Houston, USA","Memorial Sloan Kettering Cancer Center — New York, USA","Royal Marsden Hospital — London, United Kingdom","Gustave Roussy — Villejuif, France","Karolinska University Hospital — Stockholm, Sweden","National Cancer Center — Tokyo, Japan","Peter MacCallum Cancer Centre — Melbourne, Australia","A.C. Camargo Cancer Center — São Paulo, Brazil"];
+document.getElementById('country').innerHTML = COUNTRY_LIST.map(c=>`<option>${c}</option>`).join('');
+document.getElementById('hnames').innerHTML = KNOWN_HOSPITALS.map(n=>`<option value="${n}">`).join('');
+
+document.getElementById('signupForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('formError'); errEl.classList.add('hidden');
+  const pass = document.getElementById('password').value, pass2 = document.getElementById('password2').value;
+  if (pass !== pass2) { errEl.innerText = 'Passwords do not match.'; errEl.classList.remove('hidden'); return; }
+
+  const payload = {
+    name: document.getElementById('name').value.trim(),
+    city: document.getElementById('city').value.trim(),
+    country: document.getElementById('country').value,
+    type: document.getElementById('type').value,
+    repName: document.getElementById('repName').value.trim(),
+    repRole: document.getElementById('repRole').value.trim(),
+    repEmail: document.getElementById('repEmail').value.trim(),
+    repPhone: document.getElementById('repPhone').value.trim(),
+    password: pass,
+  };
+  const btn = document.getElementById('submitBtn'); btn.disabled = true; btn.innerText = 'Submitting…';
+  try {
+    const result = await API.post('/api/auth/register', payload);
+    document.getElementById('signupForm').querySelectorAll('input,select,button').forEach(el => el.disabled = true);
+    document.getElementById('formSuccess').classList.remove('hidden');
+    if (result.emailDelivery === 'logged') {
+      document.getElementById('devEmailHint').classList.remove('hidden');
+    }
+  } catch (err) {
+    errEl.innerText = err.message; errEl.classList.remove('hidden');
+    btn.disabled = false; btn.innerText = 'Submit Registration';
+  }
+});
+</script>
+</body>
+</html>
