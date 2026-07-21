@@ -29,6 +29,7 @@
       <button class="nav-btn" data-view="newpatient">🧾 New Patient Intake</button>
       <button class="nav-btn" data-view="simulator">🧬 Prognosis Simulator</button>
       <button class="nav-btn" data-view="models">∑ Model Registry</button>
+      <button class="nav-btn" data-view="tutorial">🎓 Tutorial</button>
     </nav>
   </aside>
   <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
@@ -37,7 +38,7 @@
 
       <div id="view-dashboard" class="view">
         <div id="pendingBanner" class="card pad hidden" style="border-left:4px solid var(--warn); margin-bottom:16px;">
-          <p style="font-size:12px; color:var(--warn); margin:0;">Your hospital's registration is pending administrator approval. Patient intake and simulation unlock once approved.</p>
+          <p style="font-size:12px; color:var(--warn); margin:0;">Your submission is under review by the MOLAB Team. Once approved, next steps will be communicated to you directly — patient intake and simulation unlock automatically the moment your hospital is approved.</p>
         </div>
         <div class="grid grid-3" style="margin-bottom:16px;">
           <div class="card pad"><div class="label-sm">Patients on file</div><div id="statPatients" class="font-display" style="font-size:1.8rem; color:var(--accent);">0</div></div>
@@ -97,7 +98,9 @@
           <label class="label-sm" style="margin:0;">Patient case</label>
           <select class="input" id="simPatientSelect" style="width:auto; min-width:220px;"></select>
           <button class="btn btn-primary" style="margin-left:auto;" onclick="runSimulation()" id="runSimBtn">Apply All Models</button>
-          <button class="btn btn-ghost" onclick="downloadReport()">Download Report</button>
+          <button class="btn btn-ghost" onclick="downloadCSV()">Download Data (CSV)</button>
+          <button class="btn btn-ghost" onclick="downloadChartPDF()">Download Chart (PDF)</button>
+          <button class="btn btn-ghost" onclick="downloadReport()">Download Report (TXT)</button>
         </div>
         <div id="simPatientCard" class="card pad grid grid-4" style="margin-bottom:14px;"></div>
         <div class="grid" style="grid-template-columns:280px 1fr; margin-bottom:14px;">
@@ -136,9 +139,53 @@
         </div>
       </div>
 
+      <div id="view-tutorial" class="view">
+        <div class="card pad" style="margin-bottom:16px;">
+          <h3 class="font-display" style="margin-top:0;">How to run a prognosis simulation</h3>
+          <div class="grid grid-2">
+            <div class="card pad" style="background:var(--bg);"><div class="font-mono" style="color:var(--accent); font-size:12px; margin-bottom:4px;">STEP 1</div><div style="font-size:12px; color:#C7D6CC;">Go to <b>New Patient Intake</b> and enter the patient's basic details (de-identified code only), then add at least two serial tumor-volume measurements — day (t) and volume in mm³ from imaging/RECIST readings.</div></div>
+            <div class="card pad" style="background:var(--bg);"><div class="font-mono" style="color:var(--accent); font-size:12px; margin-bottom:4px;">STEP 2</div><div style="font-size:12px; color:#C7D6CC;">Open <b>Prognosis Simulator</b>, select the patient, and click <b>Apply All Models</b>. The server fits all five growth models to that patient's measurements using RK4 integration and a Nelder–Mead optimizer.</div></div>
+            <div class="card pad" style="background:var(--bg);"><div class="font-mono" style="color:var(--accent); font-size:12px; margin-bottom:4px;">STEP 3</div><div style="font-size:12px; color:#C7D6CC;">Read the consensus cards: the overall <b>risk band</b> (Low / Moderate / High, based on median doubling time), the single <b>best-fit model</b> (lowest AIC), and the <b>projected volume 90 days out</b> with its range across all five models.</div></div>
+            <div class="card pad" style="background:var(--bg);"><div class="font-mono" style="color:var(--accent); font-size:12px; margin-bottom:4px;">STEP 4</div><div style="font-size:12px; color:#C7D6CC;">Add more measurements over time as new imaging comes in, re-run the simulation, and download the CSV data, PDF chart, or text report for the patient's chart or MDT discussion. Every output still needs clinician review before any care decision.</div></div>
+          </div>
+        </div>
+
+        <div class="card pad">
+          <h3 class="font-display" style="margin-top:0;">What each model implies</h3>
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <div style="border-left:3px solid #5EEAD4; padding-left:12px;">
+              <div style="font-weight:600; font-size:13px;">Gompertz Growth <span class="font-mono" style="color:var(--accent); font-size:11px; margin-left:6px;">dV/dt = rV·ln(K/V)</span></div>
+              <p style="font-size:12px; color:#C7D6CC; margin:4px 0 0;">Growth starts fast and steadily decelerates as the tumor approaches a theoretical maximum size (K). Implies the tumor's growth rate is naturally slowing down over time — the classic pattern for many solid tumors and a common choice for tracking treatment response.</p>
+            </div>
+            <div style="border-left:3px solid #F2C14E; padding-left:12px;">
+              <div style="font-weight:600; font-size:13px;">Logistic Growth <span class="font-mono" style="color:var(--accent); font-size:11px; margin-left:6px;">dV/dt = rV(1 − V/K)</span></div>
+              <p style="font-size:12px; color:#C7D6CC; margin:4px 0 0;">Similar deceleration to Gompertz but with a harder, more symmetric ceiling. Implies growth is limited by a fixed capacity — useful when the surrounding tissue or organ space itself constrains how large the tumor can get.</p>
+            </div>
+            <div style="border-left:3px solid #E15B64; padding-left:12px;">
+              <div style="font-weight:600; font-size:13px;">Exponential Growth <span class="font-mono" style="color:var(--accent); font-size:11px; margin-left:6px;">dV/dt = rV</span></div>
+              <p style="font-size:12px; color:#C7D6CC; margin:4px 0 0;">Constant relative growth rate with no slowdown. Implies unconstrained, early-stage growth — usually the best fit for small, treatment-naïve, fast-doubling lesions where no capacity limit has been reached yet.</p>
+            </div>
+            <div style="border-left:3px solid #7C9EF2; padding-left:12px;">
+              <div style="font-weight:600; font-size:13px;">von Bertalanffy <span class="font-mono" style="color:var(--accent); font-size:11px; margin-left:6px;">dV/dt = aV^(2/3) − bV</span></div>
+              <p style="font-size:12px; color:#C7D6CC; margin:4px 0 0;">Balances nutrient/oxygen supply (proportional to surface area) against volumetric loss. Implies growth is limited by how well the tumor is vascularized — how much blood supply reaches its surface relative to its total size.</p>
+            </div>
+            <div style="border-left:3px solid #B48EAD; padding-left:12px;">
+              <div style="font-weight:600; font-size:13px;">Power-Law (Guiot) <span class="font-mono" style="color:var(--accent); font-size:11px; margin-left:6px;">dV/dt = rV^θ</span></div>
+              <p style="font-size:12px; color:#C7D6CC; margin:4px 0 0;">A flexible, general-purpose growth law. When θ is below 1, it implies fractal, vascularization-limited growth similar to von Bertalanffy but with an empirically fitted exponent — useful as a catch-all when a tumor doesn't cleanly follow the other four patterns.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card pad" style="margin-top:16px; border-left:4px solid var(--warn);">
+          <p style="font-size:12px; color:var(--warn); margin:0 0 6px; font-weight:600;">Reading the risk band responsibly</p>
+          <p style="font-size:12px; color:#C7D6CC; margin:0;">"High / Moderate / Low" reflects the median tumor-doubling time predicted across all five models (under 30 days, 30–90 days, and over 90 days respectively) — it is a modeling heuristic, not a validated clinical score. Always interpret it alongside imaging, histology, and the treating clinician's judgment.</p>
+        </div>
+      </div>
+
     </main>
   </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/charts.js"></script>
 <script src="/js/dashboard.js"></script>

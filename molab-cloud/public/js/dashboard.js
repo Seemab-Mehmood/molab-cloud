@@ -11,6 +11,7 @@ const PAGE_META = {
   newpatient:{title:'New Patient Intake', sub:'Register a single patient case'},
   simulator:{title:'Prognosis Simulator', sub:'Apply all models to one patient'},
   models:{title:'Model Registry', sub:'5 published mathematical oncology growth models'},
+  tutorial:{title:'Tutorial', sub:'How to use the simulator and what each model implies'},
 };
 
 document.querySelectorAll('.nav-btn').forEach(btn=>{
@@ -226,6 +227,123 @@ function renderLegend(results){
   document.getElementById('chartLegend').innerHTML = results.map(m=>
     `<div style="display:flex;align-items:center;gap:8px;font-size:10px;margin-bottom:4px;"><span style="width:10px;height:10px;border-radius:2px;background:${m.color};display:inline-block;"></span><span style="color:#9FB6A7;">${m.name}</span></div>`
   ).join('') + `<div style="display:flex;align-items:center;gap:8px;font-size:10px;padding-top:6px;border-top:1px solid var(--border);margin-top:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#F2EFE6;display:inline-block;"></span><span style="color:#9FB6A7;">Observed measurements</span></div>`;
+}
+
+function interpolateTrajectory(trajectory, targetT){
+  if(targetT<=trajectory[0].t) return trajectory[0].v;
+  if(targetT>=trajectory[trajectory.length-1].t) return trajectory[trajectory.length-1].v;
+  for(let i=1;i<trajectory.length;i++){
+    if(trajectory[i].t>=targetT){
+      const p1=trajectory[i-1], p2=trajectory[i];
+      const ratio=(targetT-p1.t)/(p2.t-p1.t);
+      return p1.v+ratio*(p2.v-p1.v);
+    }
+  }
+  return 0;
+}
+
+function csvEscape(val){
+  const s = String(val);
+  return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+
+function downloadCSV(){
+  if(!currentPatient || !currentPatient.results){ alert('Run the simulator for a patient before exporting data.'); return; }
+  const p = currentPatient, r = p.results;
+  const rows = [];
+
+  rows.push(['MOLAB Cloud - Patient Prognosis Data Export']);
+  rows.push(['Generated', new Date().toString()]);
+  rows.push(['Hospital', `${currentHospital.name} (${currentHospital.city}, ${currentHospital.country})`]);
+  rows.push(['Patient code', p.code]);
+  rows.push(['Age / Sex', `${p.age||'—'} / ${p.sex||'—'}`]);
+  rows.push(['Cancer type', p.type||'—']);
+  rows.push(['Stage', p.stage||'—']);
+  rows.push(['Risk band', r.risk]);
+  rows.push(['Median doubling time (days)', r.medianDT!==null? r.medianDT.toFixed(1) : 'n/a']);
+  rows.push(['Consensus +90d volume (mm3)', r.consensusDay90.toFixed(1)]);
+  rows.push([]);
+
+  rows.push(['SECTION: Observed measurements (as entered)']);
+  rows.push(['t (days)','Volume (mm3)']);
+  simDataset.forEach(pt => rows.push([pt.t, pt.v]));
+  rows.push([]);
+
+  rows.push(['SECTION: Model projections over time (sampled every 5 days across the fitted horizon)']);
+  const tLast = Math.max(...simDataset.map(d=>d.t));
+  const horizon = tLast + 120;
+  const header = ['t (days)', ...r.results.map(m=>m.name+' (mm3)')];
+  rows.push(header);
+  for(let t=0; t<=horizon; t+=5){
+    const row = [t];
+    r.results.forEach(m => row.push(interpolateTrajectory(m.trajectory, t).toFixed(2)));
+    rows.push(row);
+  }
+  rows.push([]);
+
+  rows.push(['SECTION: Per-model fit metrics']);
+  rows.push(['Model','Equation','Parameters','RMSE','R2','AIC','Doubling time (days)','+90d volume (mm3)']);
+  r.results.forEach(res => {
+    rows.push([
+      res.name, res.eq,
+      Object.entries(res.params).map(([k,v])=>`${k}=${v.toFixed(4)}`).join('; '),
+      res.rmse.toFixed(2), res.r2.toFixed(3), res.aic.toFixed(1),
+      res.doublingTime!==null? res.doublingTime.toFixed(1) : 'n/a',
+      res.day90.toFixed(1),
+    ]);
+  });
+  rows.push([]);
+  rows.push(['DISCLAIMER: Research prototype output. Not a certified medical device. Requires clinician review before any clinical use.']);
+
+  const csv = rows.map(row => row.map(csvEscape).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=`MOLAB_data_${p.code}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadChartPDF(){
+  if(!currentPatient || !currentPatient.results){ alert('Run the simulator for a patient before exporting a chart.'); return; }
+  if(!window.jspdf){ alert('PDF library failed to load — check your internet connection and try again.'); return; }
+  const p = currentPatient, r = p.results;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 40;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  doc.text('MOLAB Cloud — Prognosis Simulation', margin, 50);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90);
+  doc.text(`Generated ${new Date().toString()}`, margin, 66);
+  doc.text(`Hospital: ${currentHospital.name} (${currentHospital.city}, ${currentHospital.country})`, margin, 80);
+  doc.text(`Patient: ${p.code}  |  ${p.age||'—'} / ${p.sex||'—'}  |  ${p.type||'—'}  |  Stage ${p.stage||'—'}`, margin, 94);
+
+  const canvas = document.getElementById('canvasChart');
+  const imgData = canvas.toDataURL('image/png');
+  const imgW = pageW - margin*2;
+  const imgH = imgW * (canvas.height / canvas.width);
+  doc.addImage(imgData, 'PNG', margin, 112, imgW, imgH);
+
+  let y = 112 + imgH + 24;
+  doc.setTextColor(0); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text(`Consensus risk band: ${r.risk}`, margin, y); y += 16;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  doc.text(`Median doubling time: ${r.medianDT!==null? r.medianDT.toFixed(1)+' days':'n/a'}`, margin, y); y += 14;
+  doc.text(`Projected volume at +90 days: ${r.consensusDay90.toFixed(0)} mm3 (range ${r.minDay90.toFixed(0)}-${r.maxDay90.toFixed(0)})`, margin, y); y += 14;
+  const best = r.results.find(x=>x.key===r.bestKey);
+  doc.text(`Best-fit model (lowest AIC): ${best.name} — ${best.eq}`, margin, y); y += 20;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.text('Per-model metrics', margin, y); y += 14;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  r.results.forEach(res => {
+    const line = `${res.name}: RMSE=${res.rmse.toFixed(2)}  R2=${res.r2.toFixed(3)}  AIC=${res.aic.toFixed(1)}  doubling=${res.doublingTime!==null?res.doublingTime.toFixed(1)+'d':'n/a'}  +90d=${res.day90.toFixed(0)}mm3`;
+    doc.text(line, margin, y); y += 12;
+  });
+  y += 10;
+  doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(150);
+  doc.text('Research prototype output. Not a certified medical device. Requires clinician review before any clinical use.', margin, y, { maxWidth: pageW - margin*2 });
+
+  doc.save(`MOLAB_chart_${p.code}.pdf`);
 }
 
 function downloadReport(){

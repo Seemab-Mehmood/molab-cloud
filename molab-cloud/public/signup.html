@@ -32,9 +32,15 @@
       <div><label class="label-sm">Confirm password</label><input class="input" id="password2" type="password" required></div>
       <div style="grid-column:1/-1;" id="formError" class="error-text hidden"></div>
       <div style="grid-column:1/-1;" id="formSuccess" class="hidden">
-        <div class="card pad" style="border-left:4px solid var(--accent);">
-          <p style="font-size:12px; color:var(--accent); margin:0 0 6px;">Registration received.</p>
-          <p style="font-size:12px; color:#C7D6CC; margin:0;">Check your inbox for a verification email, then log in once verified. Your hospital will also need admin approval before you can register patients.</p>
+        <div class="card pad" style="border-left:4px solid var(--accent); display:flex; gap:12px; align-items:flex-start;">
+          <div style="flex-shrink:0; width:22px; height:22px; border-radius:5px; border:2px solid var(--accent); background:#14241B; display:flex; align-items:center; justify-content:center; margin-top:2px;">
+            <span style="color:var(--accent); font-size:14px; font-weight:700; line-height:1;">✓</span>
+          </div>
+          <div>
+            <p style="font-size:12px; color:var(--accent); margin:0 0 6px; font-weight:600;">Your hospital registration form has been submitted.</p>
+            <p style="font-size:12px; color:#C7D6CC; margin:0 0 6px;">It's now in front of the MOLAB Team for review. After approval, next steps will be communicated to you directly by our team — usually by email to the address you registered with.</p>
+            <p style="font-size:12px; color:#C7D6CC; margin:0;">In the meantime, verify your email using the link we've sent (see below if it hasn't arrived), then you can log in any time to check your approval status from the dashboard.</p>
+          </div>
         </div>
         <div class="card pad hidden" id="devEmailHint" style="border-left:4px solid var(--warn); margin-top:10px;">
           <p style="font-size:12px; color:var(--warn); margin:0 0 6px;">No SMTP provider is configured on this server yet.</p>

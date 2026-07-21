@@ -31,6 +31,13 @@ const config = {
   adminRouteSecret: required('ADMIN_ROUTE_SECRET', ''),
   adminAccessKey: required('ADMIN_ACCESS_KEY', ''),
 
+  // Optional one-time bootstrap admin account — created automatically on
+  // first boot if no admin with this email exists yet. After the first
+  // successful login, consider removing these two lines from .env (the
+  // account itself persists in the database regardless).
+  adminSeedEmail: required('ADMIN_SEED_EMAIL', ''),
+  adminSeedPassword: required('ADMIN_SEED_PASSWORD', ''),
+
   corsOrigin: required('CORS_ORIGIN', ''),
 };
 

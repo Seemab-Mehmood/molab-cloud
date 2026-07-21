@@ -58,21 +58,80 @@ molab-cloud/
 ```bash
 cd molab-cloud
 npm install
-cp .env.example .env
-# edit .env — at minimum set JWT_SECRET and ADMIN_ROUTE_SECRET (see below)
-
-npm run create-admin -- admin@yourorg.com "a-strong-password-here"
+# .env is already included with a working configuration (see below) —
+# edit it for your real domain/SMTP before going live.
 
 npm start
 # → MOLAB Cloud backend listening on port 4000
 ```
 
-Open `http://localhost:4000` — that's the public site. Register a hospital,
-check `data/dev-emails.log` (or your terminal) for the verification link
-since SMTP isn't configured yet, click it, log in. The hospital will show as
-"pending" until an admin approves it from the admin panel.
+Open `http://localhost:4000` — that's the public site.
 
-## 3. Generating secrets
+### Your admin login
+This deployment ships with `.env` already configured to auto-create an
+admin account on first boot:
+
+```
+Email:    molabpakistan@gmail.com
+Password: @MolabPakistan26
+Panel:    http://localhost:4000/6518107ae6b714539468f765   (swap host for your real domain)
+```
+
+This account is created automatically the first time the server starts
+(see `src/services/adminSeed.js`) — there's nothing else to run. Once you've
+confirmed you can log in, consider deleting the `ADMIN_SEED_EMAIL` /
+`ADMIN_SEED_PASSWORD` lines from `.env` (the account itself stays in the
+database regardless). To add more admins or change this password later:
+```bash
+npm run create-admin -- newemail@yourorg.com "new-password"
+```
+
+## 3. What the admin dashboard does
+
+At `/{ADMIN_ROUTE_SECRET}`, after logging in:
+- **Overview** — live counts: total/approved/pending hospitals, total patients
+- **Hospital Directory** — every submission, with a **Review** button that
+  opens the full submitted form (name, city, country, type, representative
+  contact info, email-verification status, submission timestamp) plus
+  Approve / Suspend actions right there
+- **All Patients** — cross-hospital oversight (code, hospital, type/stage,
+  risk band, simulation count) — read-only, no patient editing from here
+- **Audit Log** — every registration, login, approval, and simulation event
+
+## 4. Hospital registration → approval → use, end to end
+
+1. Rep fills out `/signup.html`. On submit, they see a checkmark confirmation:
+   *"Your hospital registration form has been submitted… After MOLAB Team
+   approval, next steps will be communicated to you directly."*
+2. A verification email goes out (or logs to `data/dev-emails.log` if SMTP
+   isn't configured yet — the signup page tells them this explicitly).
+3. Rep clicks the link, verifies, logs in — dashboard shows a "pending MOLAB
+   Team review" banner; patient intake is blocked until approved.
+4. Admin reviews the submission in the admin panel and clicks Approve.
+5. Rep's dashboard banner disappears automatically next time they load it;
+   they can now register patients and run simulations.
+
+## 5. Tutorial built into the hospital dashboard
+
+The dashboard's **Tutorial** tab (visible to every logged-in hospital rep)
+covers, in plain language:
+- The 4-step workflow (intake → simulate → read results → export)
+- What each of the 5 models implies clinically (Gompertz, Logistic,
+  Exponential, von Bertalanffy, Guiot power-law) — not just the equation,
+  but what growth pattern it represents and when it's the best fit
+- An explicit caution on how to read the risk band responsibly
+
+## 6. Exporting patient data
+
+From the Prognosis Simulator, once a simulation has been run:
+- **Download Data (CSV)** — observed measurements, a full time-series table
+  of every model's projected volume sampled every 5 days across the fitted
+  horizon, and the per-model fit metrics — opens directly in Excel/Sheets
+- **Download Chart (PDF)** — the rendered chart image plus consensus/metrics
+  text, via client-side `jsPDF` (loaded from cdnjs)
+- **Download Report (TXT)** — the original plain-text summary
+
+## 7. Generating secrets
 
 ```bash
 # JWT signing secret
@@ -85,7 +144,7 @@ openssl rand -hex 12
 openssl rand -hex 16
 ```
 
-## 4. Email verification
+## 8. Email verification
 
 Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `MAIL_FROM` in
 `.env` to any SMTP provider (SendGrid, Mailgun, Amazon SES, Postmark, Gmail
@@ -94,7 +153,7 @@ silently — it logs the verification link to the console and appends it to
 `data/dev-emails.log` so you can test the full flow locally. That fallback is
 fine for development; real deployments must configure real SMTP.
 
-## 5. How hospital accounts work
+## 9. How hospital accounts work
 
 1. `POST /api/auth/register` — creates the hospital record with
    `status = 'pending'` and `email_verified = 0`, and emails a verification
@@ -110,7 +169,7 @@ fine for development; real deployments must configure real SMTP.
    there is no client-supplied hospital ID anywhere that would let one
    hospital read another's patients.
 
-## 6. The hidden admin panel
+## 10. The hidden admin panel
 
 Nothing in `public/` links to it, references it, or contains its path.
 Three independent layers gate it:
@@ -133,20 +192,24 @@ deployment, additionally put the admin path behind a VPN or IP allowlist at
 your reverse proxy / firewall — the URL-path secrecy here is defense in
 depth, not a substitute for network-level access control.
 
-## 7. Deploying
+## 11. Deploying
 
 ### Docker (recommended)
 ```bash
-cp .env.example .env   # fill in real values
+# .env is already included and working — edit APP_BASE_URL and SMTP_* for
+# your real domain/provider first.
 docker compose up -d --build
-docker compose exec molab-cloud npm run create-admin -- admin@yourorg.com "strong-password"
+```
+The bundled admin account (molabpakistan@gmail.com) is created automatically
+on first boot. To add another admin instead:
+```bash
+docker compose exec molab-cloud npm run create-admin -- another@yourorg.com "strong-password"
 ```
 
 ### Bare metal / VM
 ```bash
 npm install --omit=dev
 npm run migrate
-npm run create-admin -- admin@yourorg.com "strong-password"
 NODE_ENV=production npm start
 ```
 Put this behind a reverse proxy (nginx/Caddy) that terminates TLS — the app
@@ -154,16 +217,18 @@ itself serves plain HTTP. Set `secure: true` on cookies happens automatically
 once `NODE_ENV=production`, which requires HTTPS in front of it.
 
 ### Environment checklist before going live
-- [ ] `JWT_SECRET` changed from the default
-- [ ] `ADMIN_ROUTE_SECRET` set to a random value, not committed anywhere
-- [ ] `ADMIN_ACCESS_KEY` set (recommended)
-- [ ] Real SMTP credentials configured and test-verified
 - [ ] `APP_BASE_URL` set to your real HTTPS domain
+- [ ] Real SMTP credentials configured and test-verified
+- [ ] Logged in once as `molabpakistan@gmail.com`, then removed
+      `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` from `.env`
 - [ ] TLS/HTTPS terminated in front of the app
 - [ ] `data/` volume backed up on a schedule
 - [ ] Admin panel additionally restricted at the network level (VPN/IP allowlist)
+- [ ] If you ever suspect `.env` was exposed, rotate `JWT_SECRET`,
+      `ADMIN_ROUTE_SECRET`, and `ADMIN_ACCESS_KEY` (commands in section 7)
+      and change the admin password with `npm run create-admin`
 
-## 8. API summary
+## 12. API summary
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
@@ -182,7 +247,7 @@ once `NODE_ENV=production`, which requires HTTPS in front of it.
 | GET | `/api/{secret}/overview` \| `/hospitals` \| `/patients` \| `/audit-log` | admin | Network oversight |
 | PATCH | `/api/{secret}/hospitals/:id/status` | admin | Approve / suspend |
 
-## 9. Before you use this with real patients
+## 13. Before you use this with real patients
 
 - All five growth models run server-side and identically for every hospital,
   but the risk-band thresholds (doubling time <30/<90/>90 days) are a
