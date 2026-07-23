@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Member Login — MOLAB Cloud</title>
+<link rel="icon" type="image/png" href="/img/molab-mark.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><div class="brand-mark"><img src="/img/molab-mark.png" alt="MOLAB Cloud" style="width:100%;height:100%;object-fit:contain;"></div><div><h1 class="font-display">MOLAB <span class="pill ok" style="padding:2px 6px;">CLOUD</span></h1></div></div>
+</div>
+<div class="container-sm">
+  <a href="/" class="font-mono notice-text" style="text-decoration:none;">← Back</a>
+  <div class="card pad" style="margin-top:16px;">
+    <h2 class="font-display" style="margin-top:0;">Hospital representative login</h2>
+    <p class="notice-text">Log in with your full name and the MOLAB Membership ID issued to you directly by the MOLAB Team. No password is required.</p>
+    <form id="loginForm">
+      <label class="label-sm">Full name (as on your MOLAB record)</label><input class="input" id="fullName" required>
+      <div style="height:10px;"></div>
+      <label class="label-sm">MOLAB Membership ID</label><input class="input" id="molabId" required>
+      <div id="err" class="error-text hidden" style="margin:10px 0 0;"></div>
+      <button type="submit" class="btn btn-primary" style="width:100%; margin-top:14px;">Log In</button>
+    </form>
+    <p class="notice-text" style="text-align:center; margin-top:14px;">Don't have a MOLAB Membership ID yet? <a href="/signup.html" style="color:var(--accent);">Learn how membership works</a></p>
+  </div>
+</div>
+<script src="/js/api.js"></script>
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('err'); errEl.classList.add('hidden');
+  try {
+    await API.post('/api/auth/login', {
+      fullName: document.getElementById('fullName').value.trim(),
+      molabId: document.getElementById('molabId').value.trim(),
+    });
+    location.href = '/dashboard.html';
+  } catch (err) {
+    errEl.innerText = err.message; errEl.classList.remove('hidden');
+  }
+});
+</script>
+</body>
+</html>
