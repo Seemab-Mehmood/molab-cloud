@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>MOLAB Cloud — Network Control</title>
+<link rel="icon" type="image/png" href="/img/molab-mark.png">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="__ADMIN_PANEL_BASE__/assets/admin.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><div class="brand-mark"><img src="/img/molab-mark.png" alt="MOLAB Cloud" style="width:100%;height:100%;object-fit:contain;"></div><div><h1 class="font-display">MOLAB <span class="pill warn" style="padding:2px 6px;">CONTROL</span></h1><p class="tag">Network Administration</p></div></div>
+  <div id="topRight"></div>
+</div>
+
+<div id="loginScreen" class="container-sm">
+  <div class="card pad" style="margin-top:48px;">
+    <h2 class="font-display" style="margin-top:0;">Administrator login</h2>
+    <p class="notice-text">This panel is not linked from any public page. Access it only from this direct, private URL.</p>
+    <label class="label-sm">Email</label><input class="input" id="al_email" type="email">
+    <div style="height:10px;"></div>
+    <label class="label-sm">Password</label><input class="input" id="al_pass" type="password">
+    <div id="al_error" class="error-text hidden" style="margin-top:8px;"></div>
+    <button class="btn btn-primary" style="width:100%; margin-top:14px;" onclick="adminLogin()">Log In</button>
+  </div>
+</div>
+
+<div id="appScreen" class="hidden" style="display:flex; height:calc(100vh - 61px);">
+  <aside class="sidebar">
+    <nav style="padding:14px; display:flex; flex-direction:column; gap:4px;">
+      <button class="nav-btn" data-view="overview">📊 Overview</button>
+      <button class="nav-btn" data-view="roster">🧾 Membership Roster</button>
+      <button class="nav-btn" data-view="hospitals">🏥 Hospitals</button>
+      <button class="nav-btn" data-view="patients">🗂️ All Patients</button>
+      <button class="nav-btn" data-view="email">✉️ Email Members</button>
+      <button class="nav-btn" data-view="audit">📜 Audit Log</button>
+      <button class="nav-btn" data-view="danger">⚠️ Danger Zone</button>
+    </nav>
+  </aside>
+  <main style="flex:1; overflow-y:auto; padding:24px;">
+
+    <div id="view-overview" class="adminview">
+      <div class="grid grid-4">
+        <div class="card pad"><div class="label-sm">Active members</div><div id="oActive" class="font-display" style="font-size:1.8rem; color:var(--accent);">0</div></div>
+        <div class="card pad"><div class="label-sm">Expired (needs renewal)</div><div id="oExpired" class="font-display" style="font-size:1.8rem; color:var(--warn);">0</div></div>
+        <div class="card pad"><div class="label-sm">Hospitals represented</div><div id="oHospitals" class="font-display" style="font-size:1.8rem; color:var(--accent);">0</div></div>
+        <div class="card pad"><div class="label-sm">Total patients</div><div id="oPatients" class="font-display" style="font-size:1.8rem; color:var(--accent);">0</div></div>
+      </div>
+      <div class="grid grid-3" style="margin-top:16px;">
+        <div class="card pad"><div class="label-sm">Simulations run</div><div id="oSims" class="font-display" style="font-size:1.5rem; color:var(--accent);">0</div></div>
+        <div class="card pad"><div class="label-sm">Suspended members</div><div id="oSuspended" class="font-display" style="font-size:1.5rem; color:var(--danger);">0</div></div>
+        <div class="card pad"><div class="label-sm">Community posts</div><div id="oPosts" class="font-display" style="font-size:1.5rem; color:var(--accent);">0</div></div>
+      </div>
+      <div class="card pad" style="margin-top:16px;">
+        <h3 class="font-display" style="margin-top:0;">Deployment note</h3>
+        <p style="font-size:12px; color:#C7D6CC; line-height:1.6;">Membership accounts exist only from roster uploads here — there is no public self-registration endpoint. This panel is gated by (1) a private, unlisted URL path, (2) admin email/password auth, and optionally (3) a shared secret header. For real production use, also put this behind a VPN or IP allowlist and enable 2FA.</p>
+      </div>
+    </div>
+
+    <div id="view-roster" class="adminview hidden">
+      <div class="card pad" style="margin-bottom:16px;">
+        <h3 class="font-display" style="margin-top:0;">Upload membership roster</h3>
+        <p class="notice-text">.xlsx, .xls, or .csv with columns: <b>Name</b>, <b>MOLAB ID</b>, <b>Email</b>, <b>Hospital/Institution</b>, <b>Country</b>, and optionally <b>Tier</b>. New rows are activated immediately — members log in with just their name and MOLAB ID, no password or email step. Each new membership starts a 12-month clock. Existing MOLAB IDs/emails are updated in place (their status and membership dates are untouched).</p>
+        <input type="file" id="rosterFile" accept=".xlsx,.xls,.csv" style="margin-top:10px;">
+        <button class="btn btn-primary" style="margin-left:10px;" onclick="uploadRoster()">Upload &amp; Import</button>
+        <a href="/templates/molab-roster-template.csv" download class="btn btn-ghost" style="margin-left:10px; text-decoration:none;">Download CSV Template</a>
+        <div id="rosterUploadResult" class="hidden card pad" style="margin-top:12px; background:var(--bg);"></div>
+      </div>
+      <input class="input" id="rSearch" placeholder="Search by name, MOLAB ID, email, or hospital…" style="max-width:400px; margin-bottom:12px;">
+      <div class="card"><table><thead><tr><th>Name</th><th>MOLAB ID</th><th>Email</th><th>Hospital</th><th>Tier</th><th>Membership expires</th><th>Status</th><th>Patients</th><th></th></tr></thead><tbody id="rosterBody"></tbody></table></div>
+    </div>
+
+    <div id="view-hospitals" class="adminview hidden">
+      <div class="card"><table><thead><tr><th>Hospital</th><th>Country</th><th>Members</th></tr></thead><tbody id="hospitalsBody"></tbody></table></div>
+    </div>
+
+    <div id="view-patients" class="adminview hidden">
+      <input class="input" id="pSearch" placeholder="Search by patient code, member, or hospital…" style="max-width:400px; margin-bottom:12px;">
+      <div class="card"><table><thead><tr><th>Code</th><th>Member</th><th>Hospital</th><th>Type / Stage</th><th>Registered</th><th>Risk</th><th>Sims</th><th></th></tr></thead><tbody id="patientsBody"></tbody></table></div>
+    </div>
+
+    <div id="patientModal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:50;">
+      <div class="card pad" style="max-width:640px; width:92%; max-height:85vh; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 class="font-display" style="margin:0;">Patient record</h3>
+          <button onclick="closePatientModal()" style="background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer;">×</button>
+        </div>
+        <div id="patientModalBody"></div>
+      </div>
+    </div>
+
+    <div id="view-email" class="adminview hidden">
+      <div class="card pad" style="max-width:640px;">
+        <h3 class="font-display" style="margin-top:0;">Email members</h3>
+        <p class="notice-text">Send a one-off message — feedback replies, system notices, or approval follow-ups — to a single member or broadcast to every active member.</p>
+        <label class="label-sm">Recipient</label>
+        <select class="input" id="emailTarget"><option value="all">All active members</option></select>
+        <div style="height:8px;"></div>
+        <label class="label-sm">Subject</label><input class="input" id="emailSubject">
+        <div style="height:8px;"></div>
+        <label class="label-sm">Message</label><textarea class="input" id="emailBody" rows="6" style="resize:vertical;"></textarea>
+        <div id="emailResult" class="hidden notice-text" style="margin-top:8px;"></div>
+        <button class="btn btn-primary" style="margin-top:12px;" onclick="sendEmail()">Send</button>
+      </div>
+    </div>
+
+    <div id="view-audit" class="adminview hidden">
+      <div class="card"><table><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Detail</th></tr></thead><tbody id="auditBody" class="font-mono"></tbody></table></div>
+    </div>
+
+    <div id="view-danger" class="adminview hidden">
+      <div class="card pad" style="max-width:520px; border-left:4px solid var(--danger);">
+        <h3 class="font-display" style="margin-top:0;">Danger zone</h3>
+        <p style="font-size:12px; color:#C7D6CC;">There is no bulk-delete API exposed by design. Suspend individual members from the Roster tab. For irreversible data operations, act directly on the server's SQLite database file with a backup taken first.</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>window.__ADMIN_API_BASE__ = "__ADMIN_API_BASE__"; window.__ADMIN_ACCESS_KEY__ = "__ADMIN_ACCESS_KEY__";</script>
+<script src="/js/charts.js"></script>
+<script src="__ADMIN_PANEL_BASE__/assets/admin.js"></script>
+</body>
+</html>
